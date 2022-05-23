@@ -14,7 +14,7 @@ context('Purchase Action', () => {
         cy.get('[data-cy=cart-button').click();
         cy.get('[data-cy=purchase-button]').click();
 
-        // Check the items have been purchased
+        // Verify number of items in the cart after purchase
         cy.get('[data-cy=badge-count]').should('have.text', '0');
     })
 
