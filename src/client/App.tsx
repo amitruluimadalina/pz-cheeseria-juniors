@@ -3,29 +3,22 @@ import { useQuery } from 'react-query';
 // Components
 import Item from './Cart/Item/Item';
 import Cart from './Cart/Cart';
-import Drawer from '@material-ui/core/Drawer';
-import LinearProgress from '@material-ui/core/LinearProgress';
-import Grid from '@material-ui/core/Grid';
+import CartItemDialog from './Dialog/Dialog';
+import Notification from './Notification/Notification';
+import RecentPurchases from './RecentPurchases/RecentPurchases';
+import { Toolbar, Typography, Badge, Grid, LinearProgress, Drawer } from '@material-ui/core';
+//Icons
 import AddShoppingCartIcon from '@material-ui/icons/AddShoppingCart';
 import RestoreIcon from '@material-ui/icons/Restore';
-import Badge from '@material-ui/core/Badge';
 // Styles
 import { Wrapper, StyledButton, StyledAppBar, HeaderTypography } from './App.styles';
-import { AppBar, Toolbar, Typography } from '@material-ui/core';
 // Types
-export type CartItemType = {
-  id: number;
-  category: string;
-  description: string;
-  image: string;
-  price: number;
-  title: string;
-  amount: number;
-};
-
-
-const getCheeses = async (): Promise<CartItemType[]> =>
-  await (await fetch(`api/cheeses`)).json();
+import { CartItemType } from './types';
+// Functions
+import { getTotalItems, getPurchaseObject } from './utils';
+// Services
+import { getCheeses } from './Services/CheeseService';
+import { postPurchase } from './Services/PurchaseService';
 
 const App = () => {
   const [cartOpen, setCartOpen] = useState(false);
@@ -34,10 +27,11 @@ const App = () => {
     'cheeses',
     getCheeses
   );
-  console.log(data);
-
-  const getTotalItems = (items: CartItemType[]) =>
-    items.reduce((ack: number, item) => ack + item.amount, 0);
+  const [openDialog, setOpenDialog] = React.useState(false);
+  const [selectedItem, setSelectedItem] = React.useState({} as CartItemType);
+  const [openNotification, setOpenNotification] = React.useState(false);
+  const [notificationMessage, setNotificationMessage] = React.useState('');
+  const [recentPurchasesOpen, setRecentPurchasesOpen] = React.useState(false);
 
   const handleAddToCart = (clickedItem: CartItemType) => {
     setCartItems(prev => {
@@ -69,11 +63,45 @@ const App = () => {
     );
   };
 
+  const handleViewDetailsDialog = (item: CartItemType) => {
+    setSelectedItem(item);
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+  };
+
+  const handleCloseNotification = (event: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setOpenNotification(false);
+  };
+
+  const handlePurchaseResponse = (responsePostRequest: Response) => {
+    if (responsePostRequest) {
+      if (responsePostRequest.status === 200) {
+        setCartItems([] as CartItemType[])
+        setNotificationMessage('Thank you for your order');
+      }
+      else {
+        setNotificationMessage('Ooops, something went wrong');
+      }
+      setOpenNotification(true);
+    }
+  };
+  
+  const handlePurchase = async () => {
+    const purchaseObject = getPurchaseObject(cartItems);
+    const responsePostRequest = await postPurchase(purchaseObject);
+    handlePurchaseResponse(responsePostRequest);
+  };
+
   if (isLoading) return <LinearProgress />;
   if (error) return <div>Something went wrong ...</div>;
 
   return (
-
     <Wrapper>
       <StyledAppBar position="static">
         <Toolbar>
@@ -83,51 +111,50 @@ const App = () => {
             justify="space-between"
             alignItems="center"
           >
-            <StyledButton>
+            <StyledButton onClick={() => setRecentPurchasesOpen(true)}>
               <RestoreIcon />
               <Typography variant="subtitle2">
                 Recent Purchases
               </Typography>
             </StyledButton>
-
             <HeaderTypography variant="h3" noWrap>
               Welcome to Patient Zero's Cheeseria
             </HeaderTypography>
-
-            <StyledButton onClick={() => setCartOpen(true)}>
+            <StyledButton data-cy={`cart-button`} onClick={() => setCartOpen(true)}>
               <Badge
                 badgeContent={getTotalItems(cartItems)}
                 color='error'
                 data-cy="badge-count">
                 <AddShoppingCartIcon />
               </Badge>
-
               <Typography variant="subtitle2">
                 Cart
               </Typography>
             </StyledButton>
-
           </Grid>
         </Toolbar>
       </StyledAppBar>
-
       <Drawer anchor='right' open={cartOpen} onClose={() => setCartOpen(false)}>
         <Cart
           cartItems={cartItems}
           addToCart={handleAddToCart}
           removeFromCart={handleRemoveFromCart}
+          onPurchase={handlePurchase}
         />
+        <Notification openNotification={openNotification} handleClose={(event) => handleCloseNotification(event)} message={notificationMessage} />
       </Drawer>
-
+      <Drawer anchor='left' open={recentPurchasesOpen} onClose={() => setRecentPurchasesOpen(false)}>
+        <RecentPurchases />
+      </Drawer>
       <Grid container spacing={3}>
         {data?.map(item => (
           <Grid item key={item.id} xs={12} sm={4}>
-            <Item item={item} handleAddToCart={handleAddToCart} />
+            <Item item={item} handleAddToCart={handleAddToCart} handleViewDetails={handleViewDetailsDialog} />
           </Grid>
         ))}
       </Grid>
+      <CartItemDialog selectedItem={selectedItem} openDialog={openDialog} handleClose={handleCloseDialog} handleAddToCart={handleAddToCart} />
     </Wrapper>
-
   );
 };
 

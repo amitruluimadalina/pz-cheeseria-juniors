@@ -1,17 +1,15 @@
+import React from 'react';
+// Components
 import CartItem from './CartItem/CartItem';
+import { Button, Grid } from '@material-ui/core';
+// Styles
 import { Wrapper } from './Cart.styles';
-import { CartItemType } from '../App';
+// Types
+import { CartProps } from '../types';
+// Functions
+import { calculateTotal } from '../utils';
 
-type Props = {
-  cartItems: CartItemType[];
-  addToCart: (clickedItem: CartItemType) => void;
-  removeFromCart: (id: number) => void;
-};
-
-const Cart: React.FC<Props> = ({ cartItems, addToCart, removeFromCart }) => {
-  const calculateTotal = (items: CartItemType[]) =>
-    items.reduce((ack: number, item) => ack + item.amount * item.price, 0);
-
+const Cart: React.FC<CartProps> = ({ cartItems, addToCart, removeFromCart, onPurchase }) => {
   return (
     <Wrapper>
       <h2>Your Shopping Cart</h2>
@@ -25,6 +23,13 @@ const Cart: React.FC<Props> = ({ cartItems, addToCart, removeFromCart }) => {
         />
       ))}
       <h2>Total: ${calculateTotal(cartItems).toFixed(2)}</h2>
+      <Grid container
+        justify="center"
+      >
+        {cartItems.length !== 0 &&
+          <Button size="medium" variant="contained"  data-cy={`purchase-button`} onClick={onPurchase}>Purchase</Button>
+        }
+      </Grid>
     </Wrapper>
   );
 };
